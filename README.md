@@ -1,11 +1,11 @@
 ## Index
 
-- [The objective of this project](#the-objective-of-this-project)
+- [Goal of this project](#goal-of-this-project)
 - [Days](#days)
 
-## The objective of this project
+## Goal of this project
 
-The intention of this project is to explain how Kubernetes works from the beginning. We'll provide the steps to deploy a small environment where you can use the Minikube on the Virtualbox.
+The goal of this project is to explain how Kubernetes works from the beginning. We'll provide the steps to deploy a small environment where you can use the Minikube on the Virtualbox.
 
 ## Days
 

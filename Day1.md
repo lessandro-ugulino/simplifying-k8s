@@ -10,6 +10,18 @@
   - [Key Concepts](#key-concepts)
 - [Simple Kubernetes Deployment](#simple-kubernetes-deployment)
   - [Requirements](#requirements)
+- [First steps on K8s](#first-steps-on-k8s)
+  - [Checking the deployment](#checking-the-deployment)
+  - [Checking the namespace and pods](#checking-the-namespace-and-pods)
+  - [Running our first pod](#running-our-first-pod)
+  - [Checking the latest events on the cluster](#checking-the-latest-events-on-the-cluster)
+  - [Dump a k8s object to YAML](#dump-a-k8s-object-to-yaml)
+  - [Removing a pod](#removing-a-pod)
+  - [Create a pod using a YAML file](#create-a-pod-using-a-yaml-file)
+  - [Using dry-run option](#using-dry-run-option)
+  - [Show documentation about Kubernetes resources](#show-documentation-about-kubernetes-resources)
+  - [Create a Service object that exposes the pod](#create-a-service-object-that-exposes-the-pod)
+  - [Clean up everything](#clean-up-everything)
 
 # Beginning
 
@@ -167,7 +179,7 @@ CronJob is meant for performing regular scheduled actions such as backups, repor
 
 Minikube is a great way to start learning how to work with Kubernetes.
 
-You can deploy Minikube on Linux, macOS, and Windows. We’ll demonstrate on Ubuntu Linux. With this tutorial, you should be able to get a Kubernetes environment up and running in less than ten minutes.
+You can deploy Minikube on Linux, macOS, and Windows. We’ll demonstrate on Ubuntu Linux. With this tutorial, you should be able to get a Kubernetes environment up and running in less than 15 minutes.
 
 ## Requirements
 
@@ -176,3 +188,159 @@ For the purpose of the study, this will be deployed using Vagrant + VirtualBox +
 - <a href=https://developer.hashicorp.com/vagrant/downloads>Install Vagrant</a>
 - <a href=https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html>Install Ansible</a>
 - <a href=https://www.virtualbox.org/wiki/Mac%20OS%20X%20build%20instructions>Install VirtualBox</a>
+
+The below diagram describes the infrastructure. We'll use 1 master and 1 node.
+
+![minikube-infra](img/minikube-infra.png)
+
+Clone the repo and access the `simplifying-minikube` folder.
+
+If all prerequisites are met, start the cluster with the command `sudo vagrant up`
+
+![minikube-deployment](img/minikube-deployment.png)
+
+## First steps on K8s
+
+### Checking the deployment
+
+Access the Server using `sudo vagrant ssh`
+
+Check the status of the nodes with the command:
+`kubectl get nodes -o wide`
+
+![minikube-getnodes](img/get-nodes.png)
+
+### Checking the namespace and pods
+
+`kubectl get namespaces`
+
+![minikube-namespace](img/namespace.png)
+
+`kubectl get pod -A`
+
+**-A** -> all namespaces
+
+![minikube-pods](img/minikube-pods.png)
+
+`kubectl get pod -n kube-system`
+
+**-n** -> get the pods in the `kube-system` namespace
+
+![minikube-pods-kubesystem](img/minikube-pod-kubesystem.png)
+
+### Running our first pod
+
+`kubectl run nginx --image nginx`
+
+![pods-nginx](img/nginx-pod.png)
+
+List the pods: `kubectl get pod`
+
+![pods-nginx-show](img/nginx-pod-show.png)
+
+Describes a resource in Kubernetes: `kubectl describe pod nginx`
+
+### Checking the latest events on the cluster
+
+`kubectl get events`
+
+![minikube-events](img/minikube-events.png)
+
+### Dump a k8s object to YAML
+
+`kubectl get pod nginx -o yaml > my-first-pod.yaml`
+
+![dump-pod](img/dump-pod.png)
+
+A `YAML` file will be generated as shown above. You can edit this file using `vim`.
+
+### Removing a pod
+
+`kubectl delete pod nginx`
+
+![delete-pod](img/delete-pod.png)
+
+### Create a pod using a YAML file
+
+Let's use the YAML file generated before to create the pod.
+
+`kubectl create -f my-first-pod.yaml`
+
+![create-pod-yaml](img/create-pod-yaml.png)
+
+### Using dry-run option
+
+`kubectl run my-nginx --image nginx --dry-run=client -o yaml > pod-template-dry-run.yaml`
+
+The option `--dry-run=client` will let the bash know that the command will not be actually executed. `-o yaml` points out that the output will be formatted as a yaml file and finally with the `> pod-template-dry-run.yaml` we redirect the output to a yaml file with the name `pod-template-dry-run.yaml`.
+
+This option will generate a much cleaner file than the command without `--dry-run=client`.
+
+![pod-dry-run](img/pod-dry-run.png)
+
+### Show documentation about Kubernetes resources
+
+We can use the command `kubectl explain <resource>` to show the documentation about Kubernetes resources like pod.
+
+Example: `kubectl explain pod`
+
+![kubectl-explain](img/kubectl-explain.png)
+
+### Create a Service object that exposes the pod
+
+`kubectl expose pod nginx`
+
+![pod-expose-error](img/pod-expose-error.png)
+
+This error is showed due to the fact the k8s doesn't know what it the container destination port. Let's set it up.
+
+`kubectl delete -f my-first-pod.yaml`
+
+Generate a new file `my-pod-nginx-port.yaml` and add the below code.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: my-nginx
+  name: my-nginx
+spec:
+  containers:
+    - image: nginx
+      name: my-nginx
+      ports:
+        - containerPort: 80
+      resources: {}
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+status: {}
+```
+
+Run `kubectl create -f my-pod-nginx-port.yaml`
+
+Make sure the pod is running: `kubectl get pod`
+
+Run `kubectl expose pod my-nginx`
+
+![pod-expose](img/pod-expose.png)
+
+Show the services: `kubectl get services`
+
+![show-services](img/show-services.png)
+
+As the service type `ClusterIP` (we'll discuss the service types during the [Day2](Day2.md) ) can access services only inside the cluster, you'll need to ssh to the cluster running `minikube ssh`
+
+Now run `curl 10.99.66.253`
+
+The Nginx default page will be shown
+
+![nginx-page](img/nginx-page.png)
+
+Type `exit`
+
+### Clean up everything
+
+Run `kubectl delete -f my-pod-nginx-port.yaml` to delete the nginx pod created.
+
+Run `kubectl delete service my-nginx` to delete the nginx service created before.
