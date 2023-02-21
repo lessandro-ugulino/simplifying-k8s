@@ -1,0 +1,59 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Add the official Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Minikube repo
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+    - name: Add an apt signing key for Kubernetes
+      apt_key:
+        validate_certs: false
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Adding apt repository for Kubernetes
+      apt_repository:
+        repo: deb http://packages.cloud.google.com/apt/ kubernetes-xenial main
+        state: present
+        filename: kubernetes
+
+    - name: Install required system packages
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - containerd.io
+          - docker-ce
+          - docker-ce-cli
+          - kubectl
+        state: latest
+        update_cache: yes
+
+    - name: Add vagrant user to docker group
+      user:
+        name: vagrant
+        groups: docker
+        append: yes
+    - name: reset ssh connection to allow user changes to affect vagrant user
+      meta: reset_connection
+
+    - name: Download and copy the latest Minikube binary
+      get_url:
+        validate_certs: false
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: 0777
+
+    - name: Start Minikube
+      become: false
+      shell: minikube start  --driver=docker --memory=1983mb --nodes 2
